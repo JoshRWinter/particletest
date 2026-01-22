@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <win/AssetRoll.hpp>
 #include <win/gl/GL.hpp>
 #include <win/Win.hpp>
@@ -15,16 +17,24 @@ class Renderer
 	static constexpr GLuint position_ssbo_index = 1;
 
 public:
-	Renderer(win::AssetRoll &roll);
+	Renderer(win::AssetRoll &roll, int count);
 
 	void render();
 
 private:
+	static std::unique_ptr<float[]> get_initial_particles(int count, int &len);
+
+	const int count;
+
 	struct
 	{
 		win::GLFramebuffer fbo;
 		win::GLTexture fbotex;
+
 		win::GLProgram program;
+		int uniform_res;
+		int uniform_count;
+
 		win::GLVertexArray vao;
 		win::GLBuffer particles;
 		win::GLBuffer positions;

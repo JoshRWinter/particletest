@@ -1,7 +1,5 @@
 #version 440 core
 
-layout (location = 0) out vec4 frag;
-
 struct Particle
 {
 	float x, y;
@@ -22,12 +20,17 @@ layout (std430) buffer Positions
 	Position[] positions;
 };
 
+layout (location = 0) out vec4 frag;
+
+uniform ivec2 res;
+uniform uint count;
+
 void main()
 {
 	ivec2 xy = ivec2(gl_FragCoord.x, gl_FragCoord.y);
-	uint index = 1600 * xy.y + xy.x;
+	uint index = res.x * xy.y + xy.x;
 
-	if (index < 2)
+	if (index < count)
 	{
 		particles[index].x += 0.01f;
 		particles[index].y += 0.01f;

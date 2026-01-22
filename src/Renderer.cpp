@@ -1,3 +1,6 @@
+#include <ctime>
+#include <random>
+
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -17,8 +20,11 @@ static GLint get_uniform(win::GLProgram &program, const char *name)
 	return loc;
 }
 
-Renderer::Renderer(win::AssetRoll &roll)
+Renderer::Renderer(win::AssetRoll &roll, int count)
+	: count(count)
 {
+	fprintf(stderr, "%s %s\n", (const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER));
+
 	glClearColor(0.01f, 0.01f, 0.01f, 1.0);
 
 	glEnable(GL_BLEND);
@@ -27,6 +33,9 @@ Renderer::Renderer(win::AssetRoll &roll)
 	const glm::mat4 projection = glm::ortho(-8.0f, 8.0f, -4.5f, 4.5f);
 
 	{
+		const int fbx = std::ceil(std::sqrt(count));
+		const int fby = fbx;
+
 		glBindFramebuffer(GL_FRAMEBUFFER, processmode.fbo.get());
 		glActiveTexture(process_fbo_texture_unit);
 		glBindTexture(GL_TEXTURE_2D, processmode.fbotex.get());
@@ -34,19 +43,26 @@ Renderer::Renderer(win::AssetRoll &roll)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 100, 100, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, fbx, fby, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, processmode.fbotex.get(), 0);
 		const GLenum buffers[] {0};
 		glDrawBuffers(1, buffers);
 
 		processmode.program = win::GLProgram(win::load_gl_shaders(roll["shader/gl/process.vert"], roll["shader/gl/process.frag"]));
 		glUseProgram(processmode.program.get());
+		processmode.uniform_res = get_uniform(processmode.program, "res");
+		processmode.uniform_count = get_uniform(processmode.program, "count");
+		glUniform2i(processmode.uniform_res, fbx, fby);
+		glUniform1ui(processmode.uniform_count, count);
+
 		glBindVertexArray(processmode.vao.get());
 
+		int len;
+		const auto particles = get_initial_particles(count, len);
+
 		{
-			const float particles[] {2, 2, -2, -2};
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.particles.get());
-			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * 4, particles, GL_STATIC_DRAW);
+			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * len, particles.get(), GL_STATIC_DRAW);
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Particles");
 			if (loc == GL_INVALID_INDEX)
 				win::bug("No buffer particles");
@@ -55,9 +71,8 @@ Renderer::Renderer(win::AssetRoll &roll)
 		}
 
 		{
-			const float positions[] {2, 2, -2, -2};
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positions.get());
-			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(float) * 4, positions, 0);
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(float) * len, NULL, 0);
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Positions");
 			if (loc == GL_INVALID_INDEX)
 				win::bug("No buffer positions");
@@ -112,8 +127,28 @@ void Renderer::render()
 		glUseProgram(particlemode.program.get());
 		glBindVertexArray(particlemode.vao.get());
 
-		glDrawArrays(GL_TRIANGLES, 0, 12);
+		glDrawArrays(GL_TRIANGLES, 0, 6 * count);
 	}
 
 	win::gl_check_error();
+}
+
+std::unique_ptr<float[]> Renderer::get_initial_particles(int count, int &len)
+{
+	std::mt19937 mersenne(time(NULL));
+
+	const auto random = [&mersenne](float a, float b)
+	{
+		return std::uniform_real_distribution(a, b)(mersenne);
+	};
+	len = count * 2;
+	std::unique_ptr<float[]> particles(new float[len]);
+
+	for (int i = 0; i < count; ++i)
+	{
+		particles[i * 2 + 0] = random(-4.0f, 4.0f);
+		particles[i * 2 + 1] = random(-4.0f, 4.0f);
+	}
+
+	return particles;
 }

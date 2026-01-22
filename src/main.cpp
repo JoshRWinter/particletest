@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 
 	win::AssetRoll roll("pt.roll");
 
-	Renderer renderer(roll);
+	Renderer renderer(roll, 2000);
 
 	while (!quit)
 	{
