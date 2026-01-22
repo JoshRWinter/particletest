@@ -1,6 +1,9 @@
 shader/gl/particle.vert z
 shader/gl/particle.frag z
 
+shader/gl/process.vert z
+shader/gl/process.frag z
+
 svg2tga {
     texture/particle.svg 50 50
 }
