@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <win/AssetRoll.hpp>
 #include <win/Display.hpp>
 #include <win/gl/GL.hpp>
@@ -16,8 +18,8 @@ int main(int argc, char **argv)
 #ifndef NDEBUG
 	display_options.caption = "debug_window";
 	display_options.fullscreen = false;
-	display_options.width = 1600;
-	display_options.height = 900;
+	display_options.width = 1920;
+	display_options.height = 1080;
 	display_options.debug = false;
 #else
 	display_options.caption = "particles";
@@ -57,7 +59,7 @@ int main(int argc, char **argv)
 
 	win::AssetRoll roll("pt.roll");
 
-	Renderer renderer(roll, 2000);
+	Renderer renderer(roll, 200'000);
 
 	while (!quit)
 	{
@@ -66,6 +68,20 @@ int main(int argc, char **argv)
 		renderer.render();
 
 		display.swap();
+		{
+			static auto last = std::chrono::steady_clock::now();
+			const auto now = std::chrono::steady_clock::now();
+			static int fps = 0;
+
+			if (std::chrono::duration<float>(now - last).count() > 1.0f)
+			{
+				last = now;
+				fprintf(stderr, "FPS: %d\n", fps);
+				fps = 0;
+			}
+
+			++fps;
+		}
 	}
 
 	return 0;

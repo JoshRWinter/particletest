@@ -2,7 +2,9 @@
 
 struct Particle
 {
-	float x, y;
+	float distance;
+	float angle;
+	float speed;
 };
 
 layout (std430) buffer Particles
@@ -24,6 +26,7 @@ layout (location = 0) out vec4 frag;
 
 uniform ivec2 res;
 uniform uint count;
+uniform uint time;
 
 void main()
 {
@@ -32,11 +35,12 @@ void main()
 
 	if (index < count)
 	{
-		particles[index].x += 0.01f;
-		particles[index].y += 0.01f;
+		particles[index].angle += particles[index].speed;
 
-		positions[index].x = particles[index].x;
-		positions[index].y = particles[index].y;
+		Particle particle = particles[index];
+
+		positions[index].x = cos(particle.angle) * particle.distance;
+		positions[index].y = sin(particle.angle) * particle.distance;
 	}
 
 	frag = vec4(1.0, 0.0, 0.0, 1.0);

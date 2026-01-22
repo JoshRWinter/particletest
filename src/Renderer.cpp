@@ -141,13 +141,14 @@ std::unique_ptr<float[]> Renderer::get_initial_particles(int count, int &len)
 	{
 		return std::uniform_real_distribution(a, b)(mersenne);
 	};
-	len = count * 2;
+	len = count * 3;
 	std::unique_ptr<float[]> particles(new float[len]);
 
 	for (int i = 0; i < count; ++i)
 	{
-		particles[i * 2 + 0] = random(-4.0f, 4.0f);
-		particles[i * 2 + 1] = random(-4.0f, 4.0f);
+		particles[i * 3 + 0] = random(0.001f, 5.0f);
+		particles[i * 3 + 1] = random(0.0f, M_PI * 2.0f);
+		particles[i * 3 + 2] = random(0.001f, 0.01f);
 	}
 
 	return particles;

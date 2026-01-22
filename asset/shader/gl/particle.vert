@@ -25,7 +25,7 @@ void main()
 
 	ftexcoord = vec2(tc[vert * 2 + 0], tc[vert * 2 + 1]);
 
-	vec2 size = vec2(0.1, 0.1);
+	vec2 size = vec2(0.025, 0.025);
 	vec2 pos = vec2(positions[index].x, positions[index].y);
 	mat4 model = mat4(size.x, 0.0, 0.0, 0.0, 0.0, size.y, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, pos.x, pos.y, 0.0, 1.0);
 	gl_Position = projection * model * vec4(verts[vert * 2 + 0], verts[vert * 2 + 1], 0.0, 1.0);
