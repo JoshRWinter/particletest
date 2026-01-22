@@ -1,3 +1,4 @@
+#include <win/AssetRoll.hpp>
 #include <win/Display.hpp>
 #include <win/gl/GL.hpp>
 #include <win/Utility.hpp>
@@ -30,6 +31,8 @@ int main(int argc, char **argv)
 	win::Display display(display_options);
 	display.vsync(true);
 
+	win::load_gl_functions();
+
 	bool quit = false;
 	display.register_button_handler(
 		[&quit](win::Button button, bool press)
@@ -52,7 +55,9 @@ int main(int argc, char **argv)
 				quit = true;
 		});
 
-	Renderer renderer;
+	win::AssetRoll roll("pt.roll");
+
+	Renderer renderer(roll);
 
 	while (!quit)
 	{
