@@ -3,6 +3,7 @@
 struct Position
 {
 	float x, y;
+	float speed;
 };
 
 layout (std430) buffer Positions
@@ -15,6 +16,7 @@ const float[] verts = float[](-h, h, -h, -h, h, -h, -h, h, h, -h, h, h);
 const float[] tc = float[](0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1);
 
 out vec2 ftexcoord;
+out float speed;
 
 uniform mat4 projection;
 
@@ -24,6 +26,7 @@ void main()
 	uint vert = gl_VertexID % 6;
 
 	ftexcoord = vec2(tc[vert * 2 + 0], tc[vert * 2 + 1]);
+	speed = positions[index].speed;
 
 	vec2 size = vec2(0.025, 0.025);
 	vec2 pos = vec2(positions[index].x, positions[index].y);

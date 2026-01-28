@@ -16,6 +16,7 @@ layout (std430) buffer Particles
 struct Position
 {
 	float x, y;
+	float speed;
 };
 
 layout (std430) buffer Positions
@@ -89,6 +90,7 @@ void main()
 
 		positions[index].x = particles[index].x;
 		positions[index].y = particles[index].y;
+		positions[index].speed = sqrt(pow(particles[index].xv, 2) + pow(particles[index].yv, 2)) * 10.0;
 	}
 
 	frag = vec4(1.0, 0.0, 0.0, 1.0);

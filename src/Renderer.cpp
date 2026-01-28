@@ -75,7 +75,7 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 
 		{
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positions.get());
-			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(float) * len, NULL, 0);
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(float) * count * 3, NULL, 0);
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Positions");
 			if (loc == GL_INVALID_INDEX)
 				win::bug("No buffer positions");
