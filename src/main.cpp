@@ -57,15 +57,25 @@ int main(int argc, char **argv)
 				quit = true;
 		});
 
+	win::Area area(-8.0f, 8.0f, -4.5f, 4.5f);
+
+	float mousex = 0.0f, mousey = 0.0f;
+	display.register_mouse_handler(
+		[&display, &area, &mousex, &mousey](int x, int y)
+		{
+			mousex = (x / (float)display.width()) * (area.right - area.left) - area.right;
+			mousey = (-y / (float)display.height()) * (area.top - area.bottom) + area.top;
+		});
+
 	win::AssetRoll roll("pt.roll");
 
-	Renderer renderer(roll, 200'000);
+	Renderer renderer(roll, area, 1'000'000);
 
 	while (!quit)
 	{
 		display.process();
 
-		renderer.render();
+		renderer.render(mousex, mousey);
 
 		display.swap();
 		{

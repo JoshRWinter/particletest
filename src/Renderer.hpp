@@ -4,6 +4,7 @@
 
 #include <win/AssetRoll.hpp>
 #include <win/gl/GL.hpp>
+#include <win/Utility.hpp>
 #include <win/Win.hpp>
 
 class Renderer
@@ -17,9 +18,9 @@ class Renderer
 	static constexpr GLuint position_ssbo_index = 1;
 
 public:
-	Renderer(win::AssetRoll &roll, int count);
+	Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count);
 
-	void render();
+	void render(float x, float y);
 
 private:
 	static std::unique_ptr<float[]> get_initial_particles(int count, int &len);
@@ -34,6 +35,8 @@ private:
 		win::GLProgram program;
 		int uniform_res;
 		int uniform_count;
+		int uniform_area;
+		int uniform_pointer;
 
 		win::GLVertexArray vao;
 		win::GLBuffer particles;

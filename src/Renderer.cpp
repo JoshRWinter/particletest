@@ -20,7 +20,7 @@ static GLint get_uniform(win::GLProgram &program, const char *name)
 	return loc;
 }
 
-Renderer::Renderer(win::AssetRoll &roll, int count)
+Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count)
 	: count(count)
 {
 	fprintf(stderr, "%s %s\n", (const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER));
@@ -30,7 +30,7 @@ Renderer::Renderer(win::AssetRoll &roll, int count)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	const glm::mat4 projection = glm::ortho(-8.0f, 8.0f, -4.5f, 4.5f);
+	const glm::mat4 projection = glm::ortho(area.left, area.right, area.bottom, area.top);
 
 	{
 		const int fbx = std::ceil(std::sqrt(count));
@@ -52,8 +52,11 @@ Renderer::Renderer(win::AssetRoll &roll, int count)
 		glUseProgram(processmode.program.get());
 		processmode.uniform_res = get_uniform(processmode.program, "res");
 		processmode.uniform_count = get_uniform(processmode.program, "count");
+		processmode.uniform_area = get_uniform(processmode.program, "area");
+		processmode.uniform_pointer = get_uniform(processmode.program, "pointer");
 		glUniform2i(processmode.uniform_res, fbx, fby);
 		glUniform1ui(processmode.uniform_count, count);
+		glUniform4f(processmode.uniform_area, area.left, area.right, area.bottom, area.top);
 
 		glBindVertexArray(processmode.vao.get());
 
@@ -111,11 +114,12 @@ Renderer::Renderer(win::AssetRoll &roll, int count)
 	win::gl_check_error();
 }
 
-void Renderer::render()
+void Renderer::render(float x, float y)
 {
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, processmode.fbotex.get());
 		glUseProgram(processmode.program.get());
+		glUniform2f(processmode.uniform_pointer, x, y);
 		glBindVertexArray(processmode.vao.get());
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	}
@@ -141,14 +145,16 @@ std::unique_ptr<float[]> Renderer::get_initial_particles(int count, int &len)
 	{
 		return std::uniform_real_distribution(a, b)(mersenne);
 	};
-	len = count * 3;
+
+	len = count * 4;
 	std::unique_ptr<float[]> particles(new float[len]);
 
 	for (int i = 0; i < count; ++i)
 	{
-		particles[i * 3 + 0] = random(0.001f, 5.0f);
-		particles[i * 3 + 1] = random(0.0f, M_PI * 2.0f);
-		particles[i * 3 + 2] = random(0.001f, 0.01f);
+		particles[i * 4 + 0] = random(-8.0f, 8.0f);
+		particles[i * 4 + 1] = random(-4.5f, 4.5f);
+		particles[i * 4 + 2] = random(0.0f, M_PI * 2.0f);
+		particles[i * 4 + 3] = random(0.01f, 0.03f);
 	}
 
 	return particles;
