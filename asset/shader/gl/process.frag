@@ -75,7 +75,7 @@ void main()
 			particles[index].yv = -particles[index].yv;
 		}
 
-		float dist = distance(pointer, vec2(particles[index].x, particles[index].y));
+		float dist = max(distance(pointer, vec2(particles[index].x, particles[index].y)), 0.04);
 		float angle = atan(particles[index].y - pointer.y, particles[index].x - pointer.x);
 		vec2 influence = vec2(cos(angle), sin(angle)) * (0.0002 / pow(dist, 2));
 
