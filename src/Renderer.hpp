@@ -23,7 +23,7 @@ public:
 	void render(float x, float y);
 
 private:
-	static std::unique_ptr<float[]> get_initial_particles(int count, int &len);
+	static std::unique_ptr<float[]> get_initial_particles(const win::Area<float> &area, int count, int &len);
 
 	const int count;
 

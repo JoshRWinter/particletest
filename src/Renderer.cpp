@@ -61,7 +61,7 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 		glBindVertexArray(processmode.vao.get());
 
 		int len;
-		const auto particles = get_initial_particles(count, len);
+		const auto particles = get_initial_particles(area, count, len);
 
 		{
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.particles.get());
@@ -137,7 +137,7 @@ void Renderer::render(float x, float y)
 	win::gl_check_error();
 }
 
-std::unique_ptr<float[]> Renderer::get_initial_particles(int count, int &len)
+std::unique_ptr<float[]> Renderer::get_initial_particles(const win::Area<float> &area, int count, int &len)
 {
 	std::mt19937 mersenne(time(NULL));
 
@@ -151,10 +151,13 @@ std::unique_ptr<float[]> Renderer::get_initial_particles(int count, int &len)
 
 	for (int i = 0; i < count; ++i)
 	{
-		particles[i * 4 + 0] = random(-8.0f, 8.0f);
+		const float speed = random(0.01f, 0.02f);
+		const float angle = random(0, 2 * M_PI);
+
+		particles[i * 4 + 0] = random(area.left, area.right);
 		particles[i * 4 + 1] = random(-4.5f, 4.5f);
-		particles[i * 4 + 2] = random(0.0f, M_PI * 2.0f);
-		particles[i * 4 + 3] = random(0.01f, 0.03f);
+		particles[i * 4 + 2] = std::cosf(angle) * speed;
+		particles[i * 4 + 3] = std::sinf(angle) * speed;
 	}
 
 	return particles;

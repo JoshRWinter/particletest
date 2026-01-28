@@ -4,8 +4,8 @@ struct Particle
 {
 	float x;
 	float y;
-	float angle;
-	float speed;
+	float xv;
+	float yv;
 };
 
 layout (std430) buffer Particles
@@ -52,37 +52,40 @@ void main()
 
 	if (index < count)
 	{
-		particles[index].x += cos(particles[index].angle) * particles[index].speed;
-		particles[index].y += sin(particles[index].angle) * particles[index].speed;
-
 		if (particles[index].x > area.y)
 		{
 			particles[index].x = area.y;
-			particles[index].angle = reflecth(particles[index].angle);
+			particles[index].xv = -particles[index].xv;
 		}
 		else if (particles[index].x < area.x)
 		{
 			particles[index].x = area.x;
-			particles[index].angle = reflecth(particles[index].angle);
+			particles[index].xv = -particles[index].xv;
 		}
 
 		if (particles[index].y > area.w)
 		{
 			particles[index].y = area.w;
-			particles[index].angle = reflectv(particles[index].angle);
+			particles[index].yv = -particles[index].yv;
 		}
 		else if (particles[index].y < area.z)
 		{
 			particles[index].y = area.z;
-			particles[index].angle = reflectv(particles[index].angle);
+			particles[index].yv = -particles[index].yv;
 		}
 
 		float dist = distance(pointer, vec2(particles[index].x, particles[index].y));
-		if (dist < 2.2)
-		particles[index].angle = atan(particles[index].y - pointer.y, particles[index].x - pointer.x);
+		float angle = atan(particles[index].y - pointer.y, particles[index].x - pointer.x);
+		vec2 influence = vec2(cos(angle), sin(angle)) * (0.0002 / pow(dist, 2));
 
-		particles[index].speed *= 0.9999;
-		if (particles[index].speed < 0.0003f) particles[index].speed = 0.0f;
+		particles[index].xv += influence.x;
+		particles[index].yv += influence.y;
+
+		particles[index].xv *= 0.99f;
+		particles[index].yv *= 0.99f;
+
+		particles[index].x += particles[index].xv;
+		particles[index].y += particles[index].yv;
 
 		positions[index].x = particles[index].x;
 		positions[index].y = particles[index].y;
