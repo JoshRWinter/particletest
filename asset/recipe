@@ -5,5 +5,5 @@ shader/gl/process.vert z
 shader/gl/process.frag z
 
 svg2tga {
-    texture/particle.svg 10 10
+    texture/particle.svg 3 3
 }
