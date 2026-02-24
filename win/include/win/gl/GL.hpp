@@ -8,8 +8,8 @@
 
 #if defined WINPLAT_LINUX
 #include <GL/gl.h>
-#include <GL/glx.h>
 #include <GL/glext.h>
+#include <GL/glx.h>
 #elif defined WINPLAT_WINDOWS
 #include <GL/GL.h>
 #include <GL/glext.h>
@@ -28,6 +28,7 @@ namespace win::gl
 WIN_STORAGE PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback;
 WIN_STORAGE PFNGLDEBUGMESSAGECONTROLPROC glDebugMessageControl;
 
+WIN_STORAGE PFNGLMEMORYBARRIERPROC glMemoryBarrier;
 WIN_STORAGE PFNGLFENCESYNCPROC glFenceSync;
 WIN_STORAGE PFNGLDELETESYNCPROC glDeleteSync;
 WIN_STORAGE PFNGLCLIENTWAITSYNCPROC glClientWaitSync;
@@ -67,7 +68,9 @@ WIN_STORAGE PFNGLBINDBUFFERBASEPROC glBindBufferBase;
 WIN_STORAGE PFNGLBINDBUFFERRANGEPROC glBindBufferRange;
 WIN_STORAGE PFNGLDELETEBUFFERSPROC glDeleteBuffers;
 
+WIN_STORAGE PFNGLGETBUFFERSUBDATAPROC glGetBufferSubData;
 WIN_STORAGE PFNGLBUFFERDATAPROC glBufferData;
+WIN_STORAGE PFNGLBUFFERSUBDATAPROC glBufferSubData;
 WIN_STORAGE PFNGLBUFFERSTORAGEPROC glBufferStorage;
 WIN_STORAGE PFNGLMAPBUFFERRANGEPROC glMapBufferRange;
 
@@ -96,6 +99,8 @@ WIN_STORAGE PFNGLDRAWELEMENTSINSTANCEDPROC glDrawElementsInstanced;
 WIN_STORAGE PFNGLDRAWELEMENTSINSTANCEDBASEINSTANCEPROC glDrawElementsInstancedBaseInstance;
 WIN_STORAGE PFNGLDRAWELEMENTSBASEVERTEXPROC glDrawElementsBaseVertex;
 WIN_STORAGE PFNGLMULTIDRAWELEMENTSINDIRECTPROC glMultiDrawElementsIndirect;
+
+WIN_STORAGE PFNGLDISPATCHCOMPUTEPROC glDispatchCompute;
 
 #ifdef WINPLAT_WINDOWS
 WIN_STORAGE PFNGLTEXIMAGE3DPROC glTexImage3D;
@@ -319,10 +324,52 @@ private:
 	GLuint fbo;
 };
 
+class GLSyncObject
+{
+	WIN_NO_COPY(GLSyncObject);
+
+public:
+	explicit GLSyncObject(GLsync s)
+		: sync(s) {}
+
+	GLSyncObject(GLSyncObject &&rhs) noexcept
+	{
+		sync = rhs.sync;
+		rhs.sync = NULL;
+	}
+
+	~GLSyncObject()
+	{
+		if (sync != NULL)
+			gl::glDeleteSync(sync);
+	}
+
+	GLSyncObject &operator=(GLSyncObject &&rhs) noexcept
+	{
+		if (&rhs == this)
+			return *this;
+
+		if (sync != NULL)
+			gl::glDeleteSync(sync);
+
+		sync = rhs.sync;
+		rhs.sync = NULL;
+
+		return *this;
+	}
+
+	GLsync get() const { return sync; }
+
+private:
+	GLsync sync;
+};
+
 void gl_check_error();
-GLuint load_gl_shaders(const std::string&, const std::string&);
-GLuint load_gl_shaders(Stream, Stream);
-void load_gl_functions();
+void gl_load_functions();
+GLuint gl_load_shaders(const std::string &, const std::string &);
+GLuint gl_load_shaders(Stream, Stream);
+GLuint gl_load_compute_shader(Stream);
+GLuint gl_load_compute_shader(const std::string &);
 
 }
 

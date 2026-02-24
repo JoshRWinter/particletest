@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 	win::Display display(display_options);
 	display.vsync(true);
 
-	win::load_gl_functions();
+	win::gl_load_functions();
 
 	bool quit = false;
 	display.register_button_handler(
