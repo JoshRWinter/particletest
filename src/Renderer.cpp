@@ -1,5 +1,7 @@
 #include <ctime>
 #include <random>
+#define _USE_MATH_DEFINES
+#include <cmath>
 
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/glm.hpp>
