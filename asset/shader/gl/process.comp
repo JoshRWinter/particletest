@@ -1,5 +1,7 @@
 #version 440 core
 
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
 struct Particle
 {
 	float x;
@@ -34,9 +36,6 @@ layout (std430) buffer PositionMapPrevious
 	int posmap_previous[];
 };
 
-layout (location = 0) out vec4 frag;
-
-uniform ivec2 res;
 uniform int count;
 uniform uint time;
 uniform vec4 area;
@@ -68,8 +67,7 @@ vec2 get_posmap_center(int index)
 
 void main()
 {
-	ivec2 xy = ivec2(gl_FragCoord.x, gl_FragCoord.y);
-	int index = xy.y * res.x + xy.x;
+	int index = int(gl_WorkGroupID.x);
 
 	if (index < count)
 	{
@@ -135,6 +133,4 @@ void main()
 		positions[index].y = particles[index].y;
 		positions[index].speed = sqrt(pow(particles[index].xv, 2) + pow(particles[index].yv, 2)) * 10.0;
 	}
-
-	frag = vec4(1.0, 0.0, 0.0, 1.0);
 }

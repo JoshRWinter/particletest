@@ -35,17 +35,12 @@ private:
 
 	struct
 	{
-		win::GLFramebuffer fbo;
-		win::GLTexture fbotex;
-
 		win::GLProgram program;
-		int uniform_res;
 		int uniform_count;
 		int uniform_area;
 		int uniform_pointer;
 		int uniform_postionmap_res;
 
-		win::GLVertexArray vao;
 		win::GLBuffer particles;
 		win::GLBuffer positions;
 		win::GLBuffer positionmap_a, positionmap_b, positionmap_c;

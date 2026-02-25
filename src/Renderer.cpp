@@ -36,26 +36,8 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 	const glm::mat4 projection = glm::ortho(area.left, area.right, area.bottom, area.top);
 
 	{
-		const int fbx = std::ceil(std::sqrt(count));
-		const int fby = fbx;
-
-		glBindFramebuffer(GL_FRAMEBUFFER, processmode.fbo.get());
-		glActiveTexture(process_fbo_texture_unit);
-		glBindTexture(GL_TEXTURE_2D, processmode.fbotex.get());
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, fbx, fby, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, processmode.fbotex.get(), 0);
-		const GLenum buffers[] {0};
-		glDrawBuffers(1, buffers);
-
-		processmode.program = win::GLProgram(win::gl_load_shaders(roll["shader/gl/process.vert"], roll["shader/gl/process.frag"]));
+		processmode.program = win::GLProgram(win::gl_load_compute_shader(roll["shader/gl/process.comp"]));
 		glUseProgram(processmode.program.get());
-
-		processmode.uniform_res = get_uniform(processmode.program, "res");
-		glUniform2i(processmode.uniform_res, fbx, fby);
 
 		processmode.uniform_count = get_uniform(processmode.program, "count");
 		glUniform1i(processmode.uniform_count, count);
@@ -67,8 +49,6 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 
 		processmode.uniform_postionmap_res = get_uniform(processmode.program, "positionmap_res");
 		glUniform2i(processmode.uniform_postionmap_res, positionmap_width, positionmap_height);
-
-		glBindVertexArray(processmode.vao.get());
 
 		int len;
 		const auto particles = get_initial_particles(area, count, len);
@@ -176,11 +156,9 @@ void Renderer::render(float x, float y)
 
 		processmode.positionmap_cycle = (processmode.positionmap_cycle + 1) % 3;
 
-		glBindFramebuffer(GL_FRAMEBUFFER, processmode.fbotex.get());
 		glUseProgram(processmode.program.get());
 		glUniform2f(processmode.uniform_pointer, x, y);
-		glBindVertexArray(processmode.vao.get());
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDispatchCompute(count, 1, 1);
 	}
 
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
