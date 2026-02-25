@@ -19,9 +19,10 @@ class Renderer
 	static constexpr GLenum process_fbo_texture_unit = GL_TEXTURE1;
 
 	static constexpr GLuint particle_ssbo_index = 0;
-	static constexpr GLuint position_ssbo_index = 1;
-	static constexpr GLuint position_map_current_ssbo_index = 2;
-	static constexpr GLuint position_map_previous_ssbo_index = 3;
+	static constexpr GLuint randomness_ssbo_index = 1;
+	static constexpr GLuint position_ssbo_index = 2;
+	static constexpr GLuint position_map_current_ssbo_index = 3;
+	static constexpr GLuint position_map_previous_ssbo_index = 4;
 
 public:
 	Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count);
@@ -30,6 +31,7 @@ public:
 
 private:
 	static std::unique_ptr<float[]> get_initial_particles(const win::Area<float> &area, int count, int &len);
+	static std::unique_ptr<float[]> get_randomness(int count);
 
 	const int count;
 
@@ -42,6 +44,7 @@ private:
 		int uniform_postionmap_res;
 
 		win::GLBuffer particles;
+		win::GLBuffer randomness;
 		win::GLBuffer positions;
 		win::GLBuffer positionmap_a, positionmap_b, positionmap_c;
 		int positionmap_cycle = 0;

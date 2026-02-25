@@ -15,6 +15,11 @@ layout (std430) buffer Particles
 	Particle[] particles;
 };
 
+layout (std430) buffer Randomness
+{
+	float randomness[];
+};
+
 struct Position
 {
 	float x, y;
@@ -104,7 +109,7 @@ void main()
 			// get influence from nearby particle
 			//float dist = max(distance(vec2(particles[index].x, particles[index].y), repel), 0.004);
 			float angle = atan(particles[index].y - repel.y, particles[index].x - repel.x);
-			vec2 influence = vec2(cos(angle), sin(angle)) * 0.001;
+			vec2 influence = vec2(cos(angle), sin(angle)) * 0.001 * randomness[index];
 
 			particles[index].xv += influence.x;
 			particles[index].yv += influence.y;
@@ -113,7 +118,7 @@ void main()
 		// get influence from pointer
 		float dist = max(distance(pointer, vec2(particles[index].x, particles[index].y)), 0.04);
 		float angle = atan(particles[index].y - pointer.y, particles[index].x - pointer.x);
-		vec2 influence = vec2(cos(angle), sin(angle)) * (0.0008 / pow(dist, 2));
+		vec2 influence = vec2(cos(angle), sin(angle)) * (0.0008 / pow(dist, 2)) * randomness[index];
 
 		// update direction of travel
 		particles[index].xv += influence.x;

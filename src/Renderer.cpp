@@ -50,11 +50,11 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 		processmode.uniform_postionmap_res = get_uniform(processmode.program, "positionmap_res");
 		glUniform2i(processmode.uniform_postionmap_res, positionmap_width, positionmap_height);
 
-		int len;
-		const auto particles = get_initial_particles(area, count, len);
-
 		// particles buffer
 		{
+			int len;
+			const auto particles = get_initial_particles(area, count, len);
+
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.particles.get());
 			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * len, particles.get(), GL_STATIC_DRAW);
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Particles");
@@ -62,6 +62,19 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 				win::bug("No buffer Particles");
 			glShaderStorageBlockBinding(processmode.program.get(), loc, particle_ssbo_index);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, particle_ssbo_index, processmode.particles.get());
+		}
+
+		// randomness buffer
+		{
+			const auto randomness = get_randomness(count);
+
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.randomness.get());
+			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * count, randomness.get(), GL_STATIC_DRAW);
+			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Randomness");
+			if (loc == GL_INVALID_INDEX)
+				win::bug("No buffer Randomness");
+			glShaderStorageBlockBinding(processmode.program.get(), loc, randomness_ssbo_index);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, randomness_ssbo_index, processmode.randomness.get());
 		}
 
 		// positions buffer
@@ -224,4 +237,23 @@ std::unique_ptr<float[]> Renderer::get_initial_particles(const win::Area<float> 
 	}
 
 	return particles;
+}
+
+std::unique_ptr<float[]> Renderer::get_randomness(int count)
+{
+	std::mt19937 mersenne(time(NULL));
+
+	const auto random = [&mersenne](float a, float b)
+	{
+		return std::uniform_real_distribution(a, b)(mersenne);
+	};
+
+	std::unique_ptr<float[]> rands(new float[count]);
+
+	for (int i = 0; i < count; ++i)
+	{
+		rands[i] = random(990, 1010) / 1000.0f;
+	}
+
+	return rands;
 }
