@@ -25,6 +25,9 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 {
 	fprintf(stderr, "%s %s\n", (const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER));
 
+	for (int i = 0; i < positionmap_width * positionmap_height; ++i)
+		empty_positionmap[i] = -1;
+
 	glClearColor(0.01f, 0.01f, 0.01f, 1.0);
 
 	glEnable(GL_BLEND);
@@ -48,44 +51,76 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 		const GLenum buffers[] {0};
 		glDrawBuffers(1, buffers);
 
-		processmode.program = win::GLProgram(win::load_gl_shaders(roll["shader/gl/process.vert"], roll["shader/gl/process.frag"]));
+		processmode.program = win::GLProgram(win::gl_load_shaders(roll["shader/gl/process.vert"], roll["shader/gl/process.frag"]));
 		glUseProgram(processmode.program.get());
+
 		processmode.uniform_res = get_uniform(processmode.program, "res");
-		processmode.uniform_count = get_uniform(processmode.program, "count");
-		processmode.uniform_area = get_uniform(processmode.program, "area");
-		processmode.uniform_pointer = get_uniform(processmode.program, "pointer");
 		glUniform2i(processmode.uniform_res, fbx, fby);
-		glUniform1ui(processmode.uniform_count, count);
+
+		processmode.uniform_count = get_uniform(processmode.program, "count");
+		glUniform1i(processmode.uniform_count, count);
+
+		processmode.uniform_area = get_uniform(processmode.program, "area");
 		glUniform4f(processmode.uniform_area, area.left, area.right, area.bottom, area.top);
+
+		processmode.uniform_pointer = get_uniform(processmode.program, "pointer");
+
+		processmode.uniform_postionmap_res = get_uniform(processmode.program, "positionmap_res");
+		glUniform2i(processmode.uniform_postionmap_res, positionmap_width, positionmap_height);
 
 		glBindVertexArray(processmode.vao.get());
 
 		int len;
 		const auto particles = get_initial_particles(area, count, len);
 
+		// particles buffer
 		{
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.particles.get());
 			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * len, particles.get(), GL_STATIC_DRAW);
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Particles");
 			if (loc == GL_INVALID_INDEX)
-				win::bug("No buffer particles");
+				win::bug("No buffer Particles");
 			glShaderStorageBlockBinding(processmode.program.get(), loc, particle_ssbo_index);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, particle_ssbo_index, processmode.particles.get());
 		}
 
+		// positions buffer
 		{
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positions.get());
 			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(float) * count * 3, NULL, 0);
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Positions");
 			if (loc == GL_INVALID_INDEX)
-				win::bug("No buffer positions");
+				win::bug("No buffer Positions");
 			glShaderStorageBlockBinding(processmode.program.get(), loc, position_ssbo_index);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_ssbo_index, processmode.positions.get());
+		}
+
+		// positionmap buffers
+		{
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_a.get());
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(empty_positionmap), empty_positionmap, GL_DYNAMIC_STORAGE_BIT);
+
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_b.get());
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(empty_positionmap), empty_positionmap, GL_DYNAMIC_STORAGE_BIT);
+
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_c.get());
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(empty_positionmap), empty_positionmap, GL_DYNAMIC_STORAGE_BIT);
+
+			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "PositionMapCurrent");
+			if (loc == GL_INVALID_INDEX)
+				win::bug("No buffer PositionMapCurrent");
+
+			const auto loc2 = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "PositionMapPrevious");
+			if (loc2 == GL_INVALID_INDEX)
+				win::bug("No buffer PositionMapPrevious");
+
+			glShaderStorageBlockBinding(processmode.program.get(), loc, position_map_current_ssbo_index);
+			glShaderStorageBlockBinding(processmode.program.get(), loc2, position_map_previous_ssbo_index);
 		}
 	}
 
 	{
-		particlemode.program = win::GLProgram(win::load_gl_shaders(roll["shader/gl/particle.vert"], roll["shader/gl/particle.frag"]));
+		particlemode.program = win::GLProgram(win::gl_load_shaders(roll["shader/gl/particle.vert"], roll["shader/gl/particle.frag"]));
 		glUseProgram(particlemode.program.get());
 		particlemode.uniform_projection = get_uniform(particlemode.program, "projection");
 
@@ -117,12 +152,62 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 void Renderer::render(float x, float y)
 {
 	{
+		if (processmode.positionmap_cycle == 0)
+		{
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_previous_ssbo_index, processmode.positionmap_a.get());
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_current_ssbo_index, processmode.positionmap_b.get());
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_c.get());
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), empty_positionmap);
+		}
+		else if (processmode.positionmap_cycle == 1)
+		{
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_previous_ssbo_index, processmode.positionmap_b.get());
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_current_ssbo_index, processmode.positionmap_c.get());
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_a.get());
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), empty_positionmap);
+		}
+		else
+		{
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_previous_ssbo_index, processmode.positionmap_c.get());
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_current_ssbo_index, processmode.positionmap_a.get());
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_b.get());
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), empty_positionmap);
+		}
+
+		processmode.positionmap_cycle = (processmode.positionmap_cycle + 1) % 3;
+
 		glBindFramebuffer(GL_FRAMEBUFFER, processmode.fbotex.get());
 		glUseProgram(processmode.program.get());
 		glUniform2f(processmode.uniform_pointer, x, y);
 		glBindVertexArray(processmode.vao.get());
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	}
+
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+	/*
+	glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+	int a[positionmap_width * positionmap_height];
+	int b[positionmap_width * positionmap_height];
+	int c[positionmap_width * positionmap_height];
+
+	memset(a, 0, sizeof(a));
+	memset(b, 0, sizeof(b));
+	memset(c, 0, sizeof(c));
+
+	glFlush();
+	glFinish();
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_a.get());
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), a);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_b.get());
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), b);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_c.get());
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), c);
+
+	win::gl_check_error();
+	*/
 
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);

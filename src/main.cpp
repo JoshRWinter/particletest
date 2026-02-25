@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
 	win::Area area(-8.0f, 8.0f, -4.5f, 4.5f);
 
-	float mousex = 0.0f, mousey = 0.0f;
+	float mousex = -10000.0f, mousey = -100000.0f;
 	display.register_mouse_handler(
 		[&display, &area, &mousex, &mousey](int x, int y)
 		{

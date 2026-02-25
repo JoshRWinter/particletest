@@ -24,61 +24,100 @@ layout (std430) buffer Positions
 	Position[] positions;
 };
 
+layout (std430) buffer PositionMapCurrent
+{
+	int posmap_current[];
+};
+
+layout (std430) buffer PositionMapPrevious
+{
+	int posmap_previous[];
+};
+
 layout (location = 0) out vec4 frag;
 
 uniform ivec2 res;
-uniform uint count;
+uniform int count;
 uniform uint time;
 uniform vec4 area;
 uniform vec2 pointer;
+uniform ivec2 positionmap_res;
 
-const float pi = 3.1415926;
+float area_left = area.x;
+float area_right = area.y;
+float area_bottom = area.z;
+float area_top = area.w;
 
-float reflectv(float a)
+int get_posmap_index(float x, float y)
 {
-	float diff = pi - a;
-	return a + diff * 2;
+	float mapx = ((x + area_right) / (area_right * 2.0)) * positionmap_res.x;
+	float mapy = ((y + area_top) / (area_top * 2.0)) * positionmap_res.y;
+
+	return (int(mapy) * positionmap_res.x) + int(mapx);
 }
 
-float reflecth(float a)
+vec2 get_posmap_center(int index)
 {
-	float diff = pi / 2.0 - a;
-	return a + diff * 2.0f;
+	float x = (((index % positionmap_res.x) / float(positionmap_res.x)) * (area_right * 2.0)) - area_right;
+	float y = (((index / positionmap_res.x) / float(positionmap_res.y)) * (area_top * 2.0)) - area_top;
+	float width = (area_right * 2.0f) / positionmap_res.x;
+	float height = (area_top * 2.0f) / positionmap_res.y;
+
+	return vec2(x + width / 2.0f, y + height / 2.0);
 }
 
 void main()
 {
 	ivec2 xy = ivec2(gl_FragCoord.x, gl_FragCoord.y);
-	uint index = res.x * xy.y + xy.x;
+	int index = xy.y * res.x + xy.x;
 
 	if (index < count)
 	{
-		if (particles[index].x > area.y)
+		if (particles[index].x > area_right)
 		{
-			particles[index].x = area.y;
+			particles[index].x = area_right;
 			particles[index].xv = -particles[index].xv;
 		}
-		else if (particles[index].x < area.x)
+		else if (particles[index].x < area_left)
 		{
-			particles[index].x = area.x;
+			particles[index].x = area_left;
 			particles[index].xv = -particles[index].xv;
 		}
 
-		if (particles[index].y > area.w)
+		if (particles[index].y > area_top)
 		{
-			particles[index].y = area.w;
+			particles[index].y = area_top;
 			particles[index].yv = -particles[index].yv;
 		}
-		else if (particles[index].y < area.z)
+		else if (particles[index].y < area_bottom)
 		{
-			particles[index].y = area.z;
+			particles[index].y = area_bottom;
 			particles[index].yv = -particles[index].yv;
 		}
 
+		// check for nearby particles
+		int posmap_index = get_posmap_index(particles[index].x, particles[index].y);
+		bool near = posmap_previous[posmap_index] != -1 && posmap_previous[posmap_index] != index;
+
+		if (near)
+		{
+			vec2 repel = get_posmap_center(posmap_index);
+
+			// get influence from nearby particle
+			//float dist = max(distance(vec2(particles[index].x, particles[index].y), repel), 0.004);
+			float angle = atan(particles[index].y - repel.y, particles[index].x - repel.x);
+			vec2 influence = vec2(cos(angle), sin(angle)) * 0.001;
+
+			particles[index].xv += influence.x;
+			particles[index].yv += influence.y;
+		}
+
+		// get influence from pointer
 		float dist = max(distance(pointer, vec2(particles[index].x, particles[index].y)), 0.04);
 		float angle = atan(particles[index].y - pointer.y, particles[index].x - pointer.x);
-		vec2 influence = vec2(cos(angle), sin(angle)) * (0.0002 / pow(dist, 2));
+		vec2 influence = vec2(cos(angle), sin(angle)) * (0.0008 / pow(dist, 2));
 
+		// update direction of travel
 		particles[index].xv += influence.x;
 		particles[index].yv += influence.y;
 
@@ -87,6 +126,10 @@ void main()
 
 		particles[index].x += particles[index].xv;
 		particles[index].y += particles[index].yv;
+
+		// update the position_map with our new position
+		posmap_index = get_posmap_index(particles[index].x, particles[index].y);
+		posmap_current[posmap_index] = index;
 
 		positions[index].x = particles[index].x;
 		positions[index].y = particles[index].y;
