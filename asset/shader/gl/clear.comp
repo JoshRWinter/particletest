@@ -1,0 +1,20 @@
+#version 460 core
+
+layout (local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout (std430) buffer Buf
+{
+	int i[];
+};
+
+uniform int count;
+
+void main()
+{
+	int index = int(gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
+
+	if (index < count)
+	{
+		i[index] = -1;
+	}
+}

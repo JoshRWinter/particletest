@@ -2,6 +2,7 @@ shader/gl/particle.vert z
 shader/gl/particle.frag z
 
 shader/gl/process.comp z
+shader/gl/clear.comp z
 
 svg2tga {
     texture/particle.svg 3 3

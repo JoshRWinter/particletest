@@ -27,9 +27,6 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 {
 	fprintf(stderr, "%s %s\n", (const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER));
 
-	for (int i = 0; i < positionmap_width * positionmap_height; ++i)
-		empty_positionmap[i] = -1;
-
 	glClearColor(0.01f, 0.01f, 0.01f, 1.0);
 
 	glEnable(GL_BLEND);
@@ -93,13 +90,13 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 		// positionmap buffers
 		{
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_a.get());
-			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(empty_positionmap), empty_positionmap, GL_DYNAMIC_STORAGE_BIT);
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(int) * positionmap_width * positionmap_height, NULL, GL_DYNAMIC_STORAGE_BIT);
 
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_b.get());
-			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(empty_positionmap), empty_positionmap, GL_DYNAMIC_STORAGE_BIT);
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(int) * positionmap_width * positionmap_height, NULL, GL_DYNAMIC_STORAGE_BIT);
 
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_c.get());
-			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(empty_positionmap), empty_positionmap, GL_DYNAMIC_STORAGE_BIT);
+			glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(int) * positionmap_width * positionmap_height, NULL, GL_DYNAMIC_STORAGE_BIT);
 
 			const auto loc = glGetProgramResourceIndex(processmode.program.get(), GL_SHADER_STORAGE_BLOCK, "PositionMapCurrent");
 			if (loc == GL_INVALID_INDEX)
@@ -112,6 +109,31 @@ Renderer::Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count
 			glShaderStorageBlockBinding(processmode.program.get(), loc, position_map_current_ssbo_index);
 			glShaderStorageBlockBinding(processmode.program.get(), loc2, position_map_previous_ssbo_index);
 		}
+	}
+
+	// clear mode
+	{
+		clearmode.program = win::GLProgram(win::gl_load_compute_shader(roll["shader/gl/clear.comp"]));
+		glUseProgram(clearmode.program.get());
+		const auto loc = glGetProgramResourceIndex(clearmode.program.get(), GL_SHADER_STORAGE_BLOCK, "Buf");
+		if (loc == GL_INVALID_INDEX)
+			win::bug("No buffer Buf");
+
+		glShaderStorageBlockBinding(clearmode.program.get(), loc, position_map_clear_index);
+
+		glUniform1i(get_uniform(clearmode.program, "count"), positionmap_width * positionmap_height);
+
+		// clear the 3 buffers from above
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_clear_index, processmode.positionmap_a.get());
+		glDispatchCompute(std::ceil((positionmap_width * positionmap_height) / 32.0f), 1, 1);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_clear_index, processmode.positionmap_b.get());
+		glDispatchCompute(std::ceil((positionmap_width * positionmap_height) / 32.0f), 1, 1);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_clear_index, processmode.positionmap_c.get());
+		glDispatchCompute(std::ceil((positionmap_width * positionmap_height) / 32.0f), 1, 1);
+
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	}
 
 	{
@@ -151,23 +173,26 @@ void Renderer::render(float x, float y)
 		{
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_previous_ssbo_index, processmode.positionmap_a.get());
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_current_ssbo_index, processmode.positionmap_b.get());
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_c.get());
-			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), empty_positionmap);
+
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_clear_index, processmode.positionmap_c.get());
 		}
 		else if (processmode.positionmap_cycle == 1)
 		{
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_previous_ssbo_index, processmode.positionmap_b.get());
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_current_ssbo_index, processmode.positionmap_c.get());
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_a.get());
-			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), empty_positionmap);
+
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_clear_index, processmode.positionmap_a.get());
 		}
 		else
 		{
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_previous_ssbo_index, processmode.positionmap_c.get());
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_current_ssbo_index, processmode.positionmap_a.get());
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_b.get());
-			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), empty_positionmap);
+
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, position_map_clear_index, processmode.positionmap_b.get());
 		}
+
+		glUseProgram(clearmode.program.get());
+		glDispatchCompute(std::ceil((positionmap_width * positionmap_height) / 32.0f), 1, 1);
 
 		processmode.positionmap_cycle = (processmode.positionmap_cycle + 1) % 3;
 
@@ -180,24 +205,25 @@ void Renderer::render(float x, float y)
 
 	/*
 	glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
-	int a[positionmap_width * positionmap_height];
-	int b[positionmap_width * positionmap_height];
-	int c[positionmap_width * positionmap_height];
 
-	memset(a, 0, sizeof(a));
-	memset(b, 0, sizeof(b));
-	memset(c, 0, sizeof(c));
+	std::unique_ptr<int[]> a(new int[positionmap_width * positionmap_height]);
+	std::unique_ptr<int[]> b(new int[positionmap_width * positionmap_height]);
+	std::unique_ptr<int[]> c(new int[positionmap_width * positionmap_height]);
+
+	memset(a.get(), 0, sizeof(int) * positionmap_width * positionmap_height);
+	memset(b.get(), 0, sizeof(int) * positionmap_width * positionmap_height);
+	memset(c.get(), 0, sizeof(int) * positionmap_width * positionmap_height);
 
 	glFlush();
 	glFinish();
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_a.get());
-	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), a);
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * positionmap_width * positionmap_height, a.get());
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_b.get());
-	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), b);
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * positionmap_width * positionmap_height, b.get());
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, processmode.positionmap_c.get());
-	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(empty_positionmap), c);
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * positionmap_width * positionmap_height, c.get());
 
 	win::gl_check_error();
 	*/

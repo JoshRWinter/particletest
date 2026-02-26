@@ -13,8 +13,6 @@ class Renderer
 	static constexpr int positionmap_width = 1600;
 	static constexpr int positionmap_height = 900;
 
-	static inline int empty_positionmap[positionmap_width * positionmap_height];
-
 	static constexpr GLenum particle_texture_unit = GL_TEXTURE0;
 	static constexpr GLenum process_fbo_texture_unit = GL_TEXTURE1;
 
@@ -23,6 +21,7 @@ class Renderer
 	static constexpr GLuint position_ssbo_index = 2;
 	static constexpr GLuint position_map_current_ssbo_index = 3;
 	static constexpr GLuint position_map_previous_ssbo_index = 4;
+	static constexpr GLuint position_map_clear_index = 5;
 
 public:
 	Renderer(win::AssetRoll &roll, const win::Area<float> &area, int count);
@@ -49,6 +48,11 @@ private:
 		win::GLBuffer positionmap_a, positionmap_b, positionmap_c;
 		int positionmap_cycle = 0;
 	} processmode;
+
+	struct
+	{
+		win::GLProgram program;
+	} clearmode;
 
 	struct
 	{
