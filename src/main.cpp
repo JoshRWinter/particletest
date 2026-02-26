@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 
 	win::AssetRoll roll("pt.roll");
 
-	Renderer renderer(roll, area, 1'000'000);
+	Renderer renderer(roll, area, 1'010'000);
 
 	while (!quit)
 	{

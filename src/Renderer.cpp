@@ -173,7 +173,7 @@ void Renderer::render(float x, float y)
 
 		glUseProgram(processmode.program.get());
 		glUniform2f(processmode.uniform_pointer, x, y);
-		glDispatchCompute(count, 1, 1);
+		glDispatchCompute(std::ceil(count / 32.0f), 1, 1);
 	}
 
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
