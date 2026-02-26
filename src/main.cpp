@@ -67,6 +67,12 @@ int main(int argc, char **argv)
 			mousey = (-y / (float)display.height()) * (area.top - area.bottom) + area.top;
 		});
 
+	display.register_resize_handler(
+		[](int w, int h)
+		{
+			glViewport(0, 0, w, h);
+		});
+
 	win::AssetRoll roll("pt.roll");
 
 	Renderer renderer(roll, area, 1'010'000);
